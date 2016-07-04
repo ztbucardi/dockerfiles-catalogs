@@ -3,6 +3,8 @@
 FROM alpine
 MAINTAINER Leandro Augusto <leandro@zaytech.com.br>
 
+ENV APP_VERSION 1
+ENV APP RELEASE 0.1
 ENV ODOO_VERSION 8.0
 
 RUN apk update && apk upgrade && \

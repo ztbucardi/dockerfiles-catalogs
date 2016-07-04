@@ -3,8 +3,8 @@
 FROM ubuntu:14.04
 MAINTAINER Leandro Augusto <leandro@zaytech.com.br>
 
-ENV ODOO_VERSION 1
-ENV ODOO_RELEASE 0.1
+ENV APP_VERSION 1
+ENV APP_RELEASE 0.3
 ENV DEBIAN_FRONTEND noninteractive
 
 
