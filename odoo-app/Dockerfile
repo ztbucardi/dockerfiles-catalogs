@@ -4,7 +4,7 @@ FROM ubuntu:14.04
 MAINTAINER Leandro Augusto <leandro@zaytech.com.br>
 
 ENV APP_VERSION 1
-ENV APP_RELEASE 0.3
+ENV APP_RELEASE 0.6
 ENV DEBIAN_FRONTEND noninteractive
 
 
@@ -29,55 +29,47 @@ RUN locale-gen pt_BR.UTF-8 \
 
 WORKDIR /opt/odoo/
 
+#RUN bash -c \
+#    'mkdir -p /opt/odoo/{etc,lib,log,var,tmp,server,addons} \
+#     && mkdir -p /opt/odoo/var/{dados,xml} \
+#     && mkdir -p /opt/odoo/var/xml/{bkp,exp,imp} \
+#     && mkdir -p /var/log/odoo '
 RUN bash -c \
-    'mkdir -p /opt/odoo/{etc,lib,log,var,tmp,server,addons} \
-     && mkdir -p /opt/odoo/var/{dados,xml} \
-     && mkdir -p /opt/odoo/var/xml/{bkp,exp,imp}'
+    'mkdir -p /opt/odoo \
+    && mkdir -p /var/log/odoo'
 
-RUN ln -s /opt/odoo/etc/ /etc/odoo \
-    && ln -s /opt/odoo/log/ /var/log/odoo \
-    && ln -sf /opt/odoo/server/OCB/openerp-server /usr/bin/odoo-server
-
-ADD files/confs/odoo.conf /opt/odoo/etc/odoo.conf
 RUN touch /var/log/odoo/odoo.log \
     && touch /var/run/odoo.pid
 
 RUN groupadd --gid 501 odoo \
-    && useradd --system --uid 501 --gid 501 --home /opt --shell /bin/bash odoo \
+    && useradd --system --uid 501 --gid 501 --home /opt/odoo --shell /bin/bash odoo \
     && chown -R odoo:odoo /opt/odoo \
-    && chown -R odoo:odoo /etc/odoo/odoo.conf \
     && chown -R odoo:odoo /var/log/odoo \
     && chown odoo:odoo /var/run/odoo.pid
 
 
 # Install requirements & libs
 
+WORKDIR /tmp/
+
 ADD files/pip-requirements /tmp/pip-requirements
 ADD http://download.gna.org/wkhtmltopdf/0.12/0.12.1/wkhtmltox-0.12.1_linux-trusty-amd64.deb /tmp/wkhtmltox.deb
 RUN pip install -r /tmp/pip-requirements && \
     dpkg -i /tmp/wkhtmltox.deb
 
-
 RUN mkdir /tmp/.python-eggs && chown -R odoo /tmp/.python-eggs
 ENV PYTHON_EGG_CACHE /tmp/.python-eggs
 
-WORKDIR /opt/odoo/lib/
 RUN git clone https://github.com/odoo-brazil/PySPED.git --branch 8.0 && \
     git clone https://github.com/odoo-brazil/pyxmlsec --branch master
 
-RUN cd /opt/odoo/lib/PySPED ; python setup.py install && \
-    cd /opt/odoo/libpyxmlsec ; python setup.py install
-
-
-# Install supervisor
-RUN apt-get install -y -qq supervisor
-ADD files/confs/supervisord.conf /etc/supervisor/supervisord.conf
+RUN cd /tmp/PySPED ; python setup.py install && \
+    cd /tmp/libpyxmlsec ; python setup.py install
 
 
 # Limpando o ambiente
-WORKDIR /opt/odoo
 RUN apt-get autoremove -y && \
     apt-get autoclean
 
-
-CMD ["/usr/bin/supervisord"]
+USER odoo
+CMD ["python", "/opt/odoo/server/OCB/odoo.py", "--config=/opt/odoo/odoo.conf"]
