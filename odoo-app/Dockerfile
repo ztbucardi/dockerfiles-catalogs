@@ -3,8 +3,10 @@
 FROM ubuntu:14.04
 MAINTAINER Leandro Augusto <leandro@zaytech.com.br>
 
+ENV ODOO_VERSION 8.0
 ENV APP_VERSION 1
-ENV APP_RELEASE 0.6
+ENV APP_RELEASE 0.7
+
 ENV DEBIAN_FRONTEND noninteractive
 
 
@@ -29,23 +31,28 @@ RUN locale-gen pt_BR.UTF-8 \
 
 WORKDIR /opt/odoo/
 
-#RUN bash -c \
-#    'mkdir -p /opt/odoo/{etc,lib,log,var,tmp,server,addons} \
-#     && mkdir -p /opt/odoo/var/{dados,xml} \
-#     && mkdir -p /opt/odoo/var/xml/{bkp,exp,imp} \
-#     && mkdir -p /var/log/odoo '
 RUN bash -c \
     'mkdir -p /opt/odoo \
     && mkdir -p /var/log/odoo'
 
 RUN touch /var/log/odoo/odoo.log \
     && touch /var/run/odoo.pid
+RUN adduser --disabled-password --gecos '' r && adduser r sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 RUN groupadd --gid 501 odoo \
     && useradd --system --uid 501 --gid 501 --home /opt/odoo --shell /bin/bash odoo \
+    && usermod -a -G sudo odoo \
     && chown -R odoo:odoo /opt/odoo \
     && chown -R odoo:odoo /var/log/odoo \
-    && chown odoo:odoo /var/run/odoo.pid
+    && chown odoo:odoo /var/run/odoo.pid \
+    && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+
+# Install requirements for website build themes
+
+RUN apt-get install -y npm \
+    ln -s /usr/bin/nodejs /usr/bin/node \
+    npm install -g less less-plugin-clean-css
 
 
 # Install requirements & libs
@@ -53,13 +60,16 @@ RUN groupadd --gid 501 odoo \
 WORKDIR /tmp/
 
 ADD files/pip-requirements /tmp/pip-requirements
+ADD https://raw.githubusercontent.com/OCA/OCB/8.0/requirements.txt /tmp/pip-requirements-ocb
+
 ADD http://download.gna.org/wkhtmltopdf/0.12/0.12.1/wkhtmltox-0.12.1_linux-trusty-amd64.deb /tmp/wkhtmltox.deb
+
 RUN pip install -r /tmp/pip-requirements && \
+    pip install -r /tmp/pip-requirements-ocb && \
     dpkg -i /tmp/wkhtmltox.deb
 
 RUN mkdir /tmp/.python-eggs && chown -R odoo /tmp/.python-eggs
 ENV PYTHON_EGG_CACHE /tmp/.python-eggs
-
 RUN git clone https://github.com/odoo-brazil/PySPED.git --branch 8.0 && \
     git clone https://github.com/odoo-brazil/pyxmlsec --branch master
 
